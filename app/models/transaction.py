@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import enum
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.category import Category
+    from app.models.user import User
 
 
 class TransactionType(str, enum.Enum):
