@@ -1,0 +1,47 @@
+from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.repositories import category as category_repo
+from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
+
+
+async def list_categories(db: AsyncSession, user_id: int) -> list[CategoryResponse]:
+    categories = await category_repo.get_all(db, user_id)
+    return [CategoryResponse.model_validate(c) for c in categories]
+
+
+async def get_category(db: AsyncSession, category_id: int, user_id: int) -> CategoryResponse:
+    category = await category_repo.get_by_id(db, category_id, user_id)
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    return CategoryResponse.model_validate(category)
+
+
+async def create_category(db: AsyncSession, user_id: int, body: CategoryCreate) -> CategoryResponse:
+    category = await category_repo.create(db, user_id=user_id, name=body.name, type=body.type)
+    return CategoryResponse.model_validate(category)
+
+
+async def update_category(
+    db: AsyncSession, category_id: int, user_id: int, body: CategoryUpdate
+) -> CategoryResponse:
+    category = await category_repo.get_by_id(db, category_id, user_id)
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    updated = await category_repo.update(db, category, name=body.name, type=body.type)
+    return CategoryResponse.model_validate(updated)
+
+
+async def delete_category(db: AsyncSession, category_id: int, user_id: int) -> None:
+    category = await category_repo.get_by_id(db, category_id, user_id)
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    try:
+        await category_repo.delete(db, category)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Category has existing transactions and cannot be deleted",
+        )
