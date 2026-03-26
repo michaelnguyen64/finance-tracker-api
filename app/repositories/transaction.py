@@ -1,11 +1,34 @@
-from sqlalchemy import select
+from __future__ import annotations
+
+from datetime import date as Date
+
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionType
 
 
-async def get_all(db: AsyncSession, user_id: int) -> list[Transaction]:
-    result = await db.execute(select(Transaction).where(Transaction.user_id == user_id))
+async def get_all(
+    db: AsyncSession,
+    user_id: int,
+    category_id: int | None = None,
+    type: TransactionType | None = None,
+    date_from: Date | None = None,
+    date_to: Date | None = None,
+) -> list[Transaction]:
+    query = select(Transaction).where(Transaction.user_id == user_id)
+
+    if category_id is not None:
+        query = query.where(Transaction.category_id == category_id)
+    if type is not None:
+        query = query.where(Transaction.type == type)
+    if date_from is not None:
+        query = query.where(Transaction.date >= date_from)
+    if date_to is not None:
+        query = query.where(Transaction.date <= date_to)
+
+    query = query.order_by(desc(Transaction.date), desc(Transaction.id))
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

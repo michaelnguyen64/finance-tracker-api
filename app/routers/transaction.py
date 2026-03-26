@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends, status
+from __future__ import annotations
+
+from datetime import date as Date
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.transaction import TransactionType
 from app.models.user import User
 from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
 from app.services import transaction as transaction_service
@@ -12,10 +17,21 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 @router.get("", response_model=list[TransactionResponse])
 async def list_transactions(
+    category_id: int | None = Query(default=None),
+    type: TransactionType | None = Query(default=None),
+    date_from: Date | None = Query(default=None),
+    date_to: Date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[TransactionResponse]:
-    return await transaction_service.list_transactions(db, current_user.id)
+    return await transaction_service.list_transactions(
+        db,
+        current_user.id,
+        category_id=category_id,
+        type=type,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

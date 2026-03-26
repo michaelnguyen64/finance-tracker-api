@@ -1,13 +1,27 @@
+from __future__ import annotations
+
+from datetime import date as Date
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.transaction import TransactionType
 from app.repositories import category as category_repo
 from app.repositories import transaction as transaction_repo
 from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
 
 
-async def list_transactions(db: AsyncSession, user_id: int) -> list[TransactionResponse]:
-    transactions = await transaction_repo.get_all(db, user_id)
+async def list_transactions(
+    db: AsyncSession,
+    user_id: int,
+    category_id: int | None = None,
+    type: TransactionType | None = None,
+    date_from: Date | None = None,
+    date_to: Date | None = None,
+) -> list[TransactionResponse]:
+    transactions = await transaction_repo.get_all(
+        db, user_id, category_id=category_id, type=type, date_from=date_from, date_to=date_to
+    )
     return [TransactionResponse.model_validate(t) for t in transactions]
 
 
