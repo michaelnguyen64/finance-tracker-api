@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date as Date
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import AliasPath, BaseModel, Field, field_validator
 
 from app.models.transaction import TransactionType
 
@@ -45,6 +45,7 @@ class TransactionResponse(BaseModel):
     note: str | None
     date: Date
     category_id: int
+    category_name: str = Field(validation_alias=AliasPath("category", "name"))
     user_id: int
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}

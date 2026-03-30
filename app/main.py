@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import models as _models  # noqa: F401
-from app.routers import auth, category, transaction
+from app.routers import auth, category, summary, transaction
 
 app = FastAPI(title="Finance Tracker API")
 
@@ -17,3 +17,4 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(category.router)
 app.include_router(transaction.router)
+app.include_router(summary.router)

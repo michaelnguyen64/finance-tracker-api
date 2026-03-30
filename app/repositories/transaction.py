@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import date as Date
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.transaction import Transaction, TransactionType
 
@@ -15,26 +16,39 @@ async def get_all(
     type: TransactionType | None = None,
     date_from: Date | None = None,
     date_to: Date | None = None,
-) -> list[Transaction]:
-    query = select(Transaction).where(Transaction.user_id == user_id)
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[list[Transaction], int]:
+    conditions = [Transaction.user_id == user_id]
 
     if category_id is not None:
-        query = query.where(Transaction.category_id == category_id)
+        conditions.append(Transaction.category_id == category_id)
     if type is not None:
-        query = query.where(Transaction.type == type)
+        conditions.append(Transaction.type == type)
     if date_from is not None:
-        query = query.where(Transaction.date >= date_from)
+        conditions.append(Transaction.date >= date_from)
     if date_to is not None:
-        query = query.where(Transaction.date <= date_to)
+        conditions.append(Transaction.date <= date_to)
 
-    query = query.order_by(desc(Transaction.date), desc(Transaction.id))
-    result = await db.execute(query)
-    return list(result.scalars().all())
+    total_result = await db.execute(select(func.count(Transaction.id)).where(*conditions))
+    total = total_result.scalar_one()
+
+    data_result = await db.execute(
+        select(Transaction)
+        .where(*conditions)
+        .options(selectinload(Transaction.category))
+        .order_by(desc(Transaction.date), desc(Transaction.id))
+        .limit(limit)
+        .offset(offset)
+    )
+    return list(data_result.scalars().all()), total
 
 
 async def get_by_id(db: AsyncSession, transaction_id: int, user_id: int) -> Transaction | None:
     result = await db.execute(
-        select(Transaction).where(Transaction.id == transaction_id, Transaction.user_id == user_id)
+        select(Transaction)
+        .where(Transaction.id == transaction_id, Transaction.user_id == user_id)
+        .options(selectinload(Transaction.category))
     )
     return result.scalar_one_or_none()
 
@@ -43,8 +57,13 @@ async def create(db: AsyncSession, user_id: int, **kwargs: object) -> Transactio
     transaction = Transaction(user_id=user_id, **kwargs)
     db.add(transaction)
     await db.commit()
-    await db.refresh(transaction)
-    return transaction
+    # Reload with category so callers can access transaction.category.name
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.id == transaction.id)
+        .options(selectinload(Transaction.category))
+    )
+    return result.scalar_one()
 
 
 async def update(db: AsyncSession, transaction: Transaction, **kwargs: object) -> Transaction:
@@ -52,8 +71,13 @@ async def update(db: AsyncSession, transaction: Transaction, **kwargs: object) -
         if value is not None:
             setattr(transaction, key, value)
     await db.commit()
-    await db.refresh(transaction)
-    return transaction
+    # Reload with category so callers can access transaction.category.name
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.id == transaction.id)
+        .options(selectinload(Transaction.category))
+    )
+    return result.scalar_one()
 
 
 async def delete(db: AsyncSession, transaction: Transaction) -> None:

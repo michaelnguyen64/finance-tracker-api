@@ -36,7 +36,7 @@ def sample_category() -> Category:
 
 
 @pytest.fixture
-def sample_transaction() -> Transaction:
+def sample_transaction(sample_category: Category) -> Transaction:
     transaction = Transaction()
     transaction.id = 1
     transaction.amount = Decimal("1000000")
@@ -45,4 +45,5 @@ def sample_transaction() -> Transaction:
     transaction.date = date(2024, 3, 1)
     transaction.category_id = 1
     transaction.user_id = 1
+    transaction.category = sample_category
     return transaction

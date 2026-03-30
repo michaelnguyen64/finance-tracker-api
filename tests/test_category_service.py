@@ -13,12 +13,13 @@ from app.services import category as category_service
 @pytest.mark.asyncio
 async def test_list_categories_returns_all(mock_db: AsyncMock, sample_category: Category) -> None:
     with patch("app.services.category.category_repo.get_all", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = [sample_category]
+        mock_get.return_value = ([sample_category], 1)
 
         result = await category_service.list_categories(mock_db, user_id=1)
 
-    assert len(result) == 1
-    assert result[0].name == "Salary"
+    assert result.total == 1
+    assert len(result.data) == 1
+    assert result.data[0].name == "Salary"
 
 
 @pytest.mark.asyncio

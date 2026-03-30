@@ -1,14 +1,27 @@
+from __future__ import annotations
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import category as category_repo
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.schemas.common import PaginatedResponse
 
 
-async def list_categories(db: AsyncSession, user_id: int) -> list[CategoryResponse]:
-    categories = await category_repo.get_all(db, user_id)
-    return [CategoryResponse.model_validate(c) for c in categories]
+async def list_categories(
+    db: AsyncSession,
+    user_id: int,
+    limit: int = 20,
+    offset: int = 0,
+) -> PaginatedResponse[CategoryResponse]:
+    categories, total = await category_repo.get_all(db, user_id, limit=limit, offset=offset)
+    return PaginatedResponse(
+        data=[CategoryResponse.model_validate(c) for c in categories],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 async def get_category(db: AsyncSession, category_id: int, user_id: int) -> CategoryResponse:

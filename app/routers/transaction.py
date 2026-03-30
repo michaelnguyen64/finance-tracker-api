@@ -9,21 +9,24 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.transaction import TransactionType
 from app.models.user import User
+from app.schemas.common import PaginatedResponse
 from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
 from app.services import transaction as transaction_service
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
-@router.get("", response_model=list[TransactionResponse])
+@router.get("", response_model=PaginatedResponse[TransactionResponse])
 async def list_transactions(
     category_id: int | None = Query(default=None),
     type: TransactionType | None = Query(default=None),
     date_from: Date | None = Query(default=None),
     date_to: Date | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[TransactionResponse]:
+) -> PaginatedResponse[TransactionResponse]:
     return await transaction_service.list_transactions(
         db,
         current_user.id,
@@ -31,6 +34,8 @@ async def list_transactions(
         type=type,
         date_from=date_from,
         date_to=date_to,
+        limit=limit,
+        offset=offset,
     )
 
 

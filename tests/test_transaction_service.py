@@ -20,12 +20,13 @@ async def test_list_transactions_returns_all(
     with patch(
         "app.services.transaction.transaction_repo.get_all", new_callable=AsyncMock
     ) as mock_get:
-        mock_get.return_value = [sample_transaction]
+        mock_get.return_value = ([sample_transaction], 1)
 
         result = await transaction_service.list_transactions(mock_db, user_id=1)
 
-    assert len(result) == 1
-    assert result[0].amount == Decimal("1000000")
+    assert result.total == 1
+    assert len(result.data) == 1
+    assert result.data[0].amount == Decimal("1000000")
 
 
 @pytest.mark.asyncio
@@ -33,7 +34,7 @@ async def test_list_transactions_passes_filters(mock_db: AsyncMock) -> None:
     with patch(
         "app.services.transaction.transaction_repo.get_all", new_callable=AsyncMock
     ) as mock_get:
-        mock_get.return_value = []
+        mock_get.return_value = ([], 0)
 
         await transaction_service.list_transactions(
             mock_db,
@@ -51,6 +52,8 @@ async def test_list_transactions_passes_filters(mock_db: AsyncMock) -> None:
             type=TransactionType.expense,
             date_from=date(2024, 3, 1),
             date_to=date(2024, 3, 31),
+            limit=20,
+            offset=0,
         )
 
 

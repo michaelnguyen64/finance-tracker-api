@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.transaction import TransactionType
 from app.repositories import category as category_repo
 from app.repositories import transaction as transaction_repo
+from app.schemas.common import PaginatedResponse
 from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
 
 
@@ -18,11 +19,25 @@ async def list_transactions(
     type: TransactionType | None = None,
     date_from: Date | None = None,
     date_to: Date | None = None,
-) -> list[TransactionResponse]:
-    transactions = await transaction_repo.get_all(
-        db, user_id, category_id=category_id, type=type, date_from=date_from, date_to=date_to
+    limit: int = 20,
+    offset: int = 0,
+) -> PaginatedResponse[TransactionResponse]:
+    transactions, total = await transaction_repo.get_all(
+        db,
+        user_id,
+        category_id=category_id,
+        type=type,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset,
     )
-    return [TransactionResponse.model_validate(t) for t in transactions]
+    return PaginatedResponse(
+        data=[TransactionResponse.model_validate(t) for t in transactions],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 async def get_transaction(
