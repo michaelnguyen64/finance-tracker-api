@@ -3,8 +3,8 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+from app.core.exceptions import ConflictException, UnauthorizedException
 from app.services import auth as auth_service
 
 
@@ -27,16 +27,17 @@ async def test_register_success(mock_db: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_register_duplicate_email_raises_400(mock_db: AsyncMock) -> None:
+async def test_register_duplicate_email_raises_409(mock_db: AsyncMock) -> None:
     from sqlalchemy.exc import IntegrityError
 
     with patch("app.services.auth.user_repo.create", new_callable=AsyncMock) as mock_create:
         mock_create.side_effect = IntegrityError(None, None, Exception())
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(ConflictException) as exc:
             await auth_service.register(mock_db, "dupe@example.com", "password123")
 
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 409
+    assert "already registered" in exc.value.message
 
 
 @pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_login_wrong_password_raises_401(mock_db: AsyncMock) -> None:
     with patch("app.services.auth.user_repo.get_by_email", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = mock_user
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(UnauthorizedException) as exc:
             await auth_service.login(mock_db, "test@example.com", "wrong_password")
 
     assert exc.value.status_code == 401
@@ -77,7 +78,7 @@ async def test_login_unknown_email_raises_401(mock_db: AsyncMock) -> None:
     with patch("app.services.auth.user_repo.get_by_email", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = None
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(UnauthorizedException) as exc:
             await auth_service.login(mock_db, "nobody@example.com", "password123")
 
     assert exc.value.status_code == 401

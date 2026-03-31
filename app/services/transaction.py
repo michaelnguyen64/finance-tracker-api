@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import date as Date
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.transaction import TransactionType
 from app.repositories import category as category_repo
 from app.repositories import transaction as transaction_repo
@@ -45,7 +45,7 @@ async def get_transaction(
 ) -> TransactionResponse:
     transaction = await transaction_repo.get_by_id(db, transaction_id, user_id)
     if not transaction:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+        raise NotFoundException("Transaction not found")
     return TransactionResponse.model_validate(transaction)
 
 
@@ -54,12 +54,12 @@ async def create_transaction(
 ) -> TransactionResponse:
     category = await category_repo.get_by_id(db, body.category_id, user_id)
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise NotFoundException("Category not found")
 
     if body.type.value != category.type.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Transaction type '{body.type}' does not match category type '{category.type}'",
+        raise BadRequestException(
+            f"Transaction type '{body.type.value}' does not match"
+            f" category type '{category.type.value}'"
         )
 
     transaction = await transaction_repo.create(
@@ -79,7 +79,7 @@ async def update_transaction(
 ) -> TransactionResponse:
     transaction = await transaction_repo.get_by_id(db, transaction_id, user_id)
     if not transaction:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+        raise NotFoundException("Transaction not found")
 
     if body.category_id is not None or body.type is not None:
         effective_category_id = (
@@ -87,15 +87,12 @@ async def update_transaction(
         )
         category = await category_repo.get_by_id(db, effective_category_id, user_id)
         if not category:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+            raise NotFoundException("Category not found")
         effective_type = body.type if body.type is not None else transaction.type
         if effective_type.value != category.type.value:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Transaction type '{effective_type.value}' does not match"
-                    f" category type '{category.type.value}'"
-                ),
+            raise BadRequestException(
+                f"Transaction type '{effective_type.value}' does not match"
+                f" category type '{category.type.value}'"
             )
 
     updated = await transaction_repo.update(
@@ -113,5 +110,5 @@ async def update_transaction(
 async def delete_transaction(db: AsyncSession, transaction_id: int, user_id: int) -> None:
     transaction = await transaction_repo.get_by_id(db, transaction_id, user_id)
     if not transaction:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+        raise NotFoundException("Transaction not found")
     await transaction_repo.delete(db, transaction)

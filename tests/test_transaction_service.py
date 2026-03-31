@@ -5,8 +5,8 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.category import Category
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
@@ -64,10 +64,11 @@ async def test_get_transaction_not_found_raises_404(mock_db: AsyncMock) -> None:
     ) as mock_get:
         mock_get.return_value = None
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(NotFoundException) as exc:
             await transaction_service.get_transaction(mock_db, transaction_id=99, user_id=1)
 
     assert exc.value.status_code == 404
+    assert "not found" in exc.value.message.lower()
 
 
 @pytest.mark.asyncio
@@ -84,12 +85,13 @@ async def test_create_transaction_mismatched_type_raises_400(
     with patch(
         "app.services.transaction.category_repo.get_by_id", new_callable=AsyncMock
     ) as mock_cat:
-        mock_cat.return_value = sample_category
+        mock_cat.return_value = sample_category  # sample_category is income type
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(BadRequestException) as exc:
             await transaction_service.create_transaction(mock_db, user_id=1, body=body)
 
     assert exc.value.status_code == 400
+    assert "does not match" in exc.value.message
 
 
 @pytest.mark.asyncio
@@ -106,7 +108,7 @@ async def test_create_transaction_invalid_category_raises_404(mock_db: AsyncMock
     ) as mock_cat:
         mock_cat.return_value = None
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(NotFoundException) as exc:
             await transaction_service.create_transaction(mock_db, user_id=1, body=body)
 
     assert exc.value.status_code == 404
@@ -155,9 +157,9 @@ async def test_update_transaction_type_mismatch_raises_400(
         ) as mock_cat,
     ):
         mock_tx.return_value = sample_transaction
-        mock_cat.return_value = sample_category
+        mock_cat.return_value = sample_category  # income category
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(BadRequestException) as exc:
             await transaction_service.update_transaction(
                 mock_db, transaction_id=1, user_id=1, body=body
             )
@@ -172,7 +174,7 @@ async def test_delete_transaction_not_found_raises_404(mock_db: AsyncMock) -> No
     ) as mock_get:
         mock_get.return_value = None
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(NotFoundException) as exc:
             await transaction_service.delete_transaction(mock_db, transaction_id=99, user_id=1)
 
     assert exc.value.status_code == 404

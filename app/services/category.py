@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ConflictException, NotFoundException
 from app.repositories import category as category_repo
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.schemas.common import PaginatedResponse
@@ -27,7 +27,7 @@ async def list_categories(
 async def get_category(db: AsyncSession, category_id: int, user_id: int) -> CategoryResponse:
     category = await category_repo.get_by_id(db, category_id, user_id)
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise NotFoundException("Category not found")
     return CategoryResponse.model_validate(category)
 
 
@@ -41,7 +41,7 @@ async def update_category(
 ) -> CategoryResponse:
     category = await category_repo.get_by_id(db, category_id, user_id)
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise NotFoundException("Category not found")
     updated = await category_repo.update(db, category, name=body.name, type=body.type)
     return CategoryResponse.model_validate(updated)
 
@@ -49,12 +49,9 @@ async def update_category(
 async def delete_category(db: AsyncSession, category_id: int, user_id: int) -> None:
     category = await category_repo.get_by_id(db, category_id, user_id)
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise NotFoundException("Category not found")
     try:
         await category_repo.delete(db, category)
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Category has existing transactions and cannot be deleted",
-        )
+        raise ConflictException("Category has existing transactions and cannot be deleted")
