@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date as Date
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException, NotFoundException
@@ -10,6 +11,8 @@ from app.repositories import category as category_repo
 from app.repositories import transaction as transaction_repo
 from app.schemas.common import PaginatedResponse
 from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
+
+logger = structlog.get_logger(__name__)
 
 
 async def list_transactions(
@@ -70,6 +73,13 @@ async def create_transaction(
         note=body.note,
         date=body.date,
         category_id=body.category_id,
+    )
+    logger.info(
+        "transaction_created",
+        transaction_id=transaction.id,
+        amount=str(transaction.amount),
+        type=transaction.type.value,
+        user_id=user_id,
     )
     return TransactionResponse.model_validate(transaction)
 

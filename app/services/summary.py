@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import summary as summary_repo
 from app.schemas.summary import MonthlySummary
+
+logger = structlog.get_logger(__name__)
 
 
 async def get_summary(
@@ -13,6 +16,7 @@ async def get_summary(
     user_id: int,
     month: str | None = None,
 ) -> list[MonthlySummary]:
+    logger.info("summary_requested", user_id=user_id, month=month)
     rows = await summary_repo.get_monthly_summaries(db, user_id, month)
     return [
         MonthlySummary(

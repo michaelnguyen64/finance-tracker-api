@@ -7,11 +7,17 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import models as _models  # noqa: F401
+from app.core.config import settings
 from app.core.exceptions import AppException
+from app.core.logging_config import configure_logging
+from app.core.middleware import RequestLoggingMiddleware
 from app.routers import auth, category, summary, transaction
+
+configure_logging(settings.log_level)
 
 app = FastAPI(title="Finance Tracker API")
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],

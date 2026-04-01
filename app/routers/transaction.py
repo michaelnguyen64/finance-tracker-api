@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from datetime import date as Date
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.tasks import LARGE_TRANSACTION_THRESHOLD, alert_large_transaction
 from app.models.transaction import TransactionType
 from app.models.user import User
 from app.schemas.common import PaginatedResponse
@@ -51,10 +52,19 @@ async def get_transaction(
 @router.post("", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 async def create_transaction(
     body: TransactionCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TransactionResponse:
-    return await transaction_service.create_transaction(db, current_user.id, body)
+    result = await transaction_service.create_transaction(db, current_user.id, body)
+    if result.amount >= LARGE_TRANSACTION_THRESHOLD:
+        background_tasks.add_task(
+            alert_large_transaction,
+            transaction_id=result.id,
+            amount=result.amount,
+            user_id=current_user.id,
+        )
+    return result
 
 
 @router.patch("/{transaction_id}", response_model=TransactionResponse)
