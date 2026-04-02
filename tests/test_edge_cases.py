@@ -38,7 +38,7 @@ def test_transaction_create_rejects_invalid_date_string() -> None:
         TransactionCreate(
             amount=Decimal("500"),
             type=TransactionType.income,
-            date="not-a-date",  # type: ignore[arg-type]
+            date="not-a-date",
             category_id=1,
         )
 

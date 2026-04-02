@@ -56,11 +56,12 @@ async def get_by_id(db: AsyncSession, transaction_id: int, user_id: int) -> Tran
 async def create(db: AsyncSession, user_id: int, **kwargs: object) -> Transaction:
     transaction = Transaction(user_id=user_id, **kwargs)
     db.add(transaction)
+    await db.flush()
+    transaction_id = transaction.id
     await db.commit()
-    # Reload with category so callers can access transaction.category.name
     result = await db.execute(
         select(Transaction)
-        .where(Transaction.id == transaction.id)
+        .where(Transaction.id == transaction_id)
         .options(selectinload(Transaction.category))
     )
     return result.scalar_one()
@@ -70,11 +71,12 @@ async def update(db: AsyncSession, transaction: Transaction, **kwargs: object) -
     for key, value in kwargs.items():
         if value is not None:
             setattr(transaction, key, value)
+    transaction_id = transaction.id
     await db.commit()
     # Reload with category so callers can access transaction.category.name
     result = await db.execute(
         select(Transaction)
-        .where(Transaction.id == transaction.id)
+        .where(Transaction.id == transaction_id)
         .options(selectinload(Transaction.category))
     )
     return result.scalar_one()
